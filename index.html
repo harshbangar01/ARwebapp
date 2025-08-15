@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -22,16 +22,14 @@
     .overlay { position: fixed; inset: 0; pointer-events: none; }
     #reticle { position: absolute; left: -1000px; top: -1000px; width: 24px; height: 24px; border: 2px solid #22c55e; border-radius: 50%; transform: translate(-50%, -50%); }
   </style>
-  <!-- Three.js & helpers -->
+  
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.min.js" type="module"></script>
-  <!-- QR Reader (ZXing) -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
 </head>
 <body>
-  <!-- WebXR DOM Overlay (for hints/buttons while in AR) -->
   <div class="ui" id="domOverlay">
     <div class="card" id="step1">
       <h1>Step 1 — Scan a QR</h1>
@@ -63,15 +61,12 @@
     </div>
   </div>
 
-  <!-- Simple visual reticle for hit test (positioned from JS) -->
   <div class="overlay"><div id="reticle"></div></div>
 
   <script>
-    // ====== STATE ======
     let lastQRValue = null;
     let scanStream = null;
 
-    // ====== QR SCANNING (ZXing) ======
     const startBtn = document.getElementById('startScan');
     const stopBtn = document.getElementById('stopScan');
     const startARBtn = document.getElementById('startAR');
@@ -86,7 +81,7 @@
 
     async function startScanLoop() {
       try {
-        // Prefer rear camera
+
         const devices = await codeReader.listVideoInputDevices();
         const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
         const constraints = backCam ? { video: { deviceId: backCam.deviceId } } : { video: { facingMode: 'environment' } };
@@ -138,18 +133,16 @@
       startScanLoop();
     });
 
-    // ====== THREE + WEBXR AR ======
     let renderer, scene, camera, controller, hitTestSource = null, hitTestSourceRequested = false;
     let reticle2D = document.getElementById('reticle');
     let placed = false;
-    let mixer = null; // Animation mixer for GLTF
+    let mixer = null; 
 
     function initThree() {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setPixelRatio(window.devicePixelRatio);
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
-      // Enable DOM Overlay so our UI remains visible in AR
       renderer.xr.setReferenceSpaceType('local');
       document.body.appendChild(renderer.domElement);
 
@@ -166,13 +159,12 @@
       });
 
       controller = renderer.xr.getController(0);
-      controller.addEventListener('select', onSelect); // Tap to place
+      controller.addEventListener('select', onSelect); 
       scene.add(controller);
     }
 
     function mapQRToModel(qrValue) {
-      // Map your QR strings to asset URLs.
-      // Replace with your real CDN paths.
+
       const map = {
         'car123': 'https://github.com/harshbangar01/AR-model/blob/Root/614230004_amy_macarena_dance.glb',
         'dragon456': 'https://github.com/harshbangar01/AR-model/blob/Root/groot_dancing.glb',
@@ -204,13 +196,11 @@
 
       session.addEventListener('end', onSessionEnd);
 
-      // Animation loop
       renderer.setAnimationLoop((timestamp, frame) => {
         if (!frame) return;
         const pose = frame.getViewerPose(xrRefSpace);
         if (!pose) return;
 
-        // Hit test setup
         if (!hitTestSourceRequested) {
           frame.session.requestHitTestSource({ space: viewerSpace }).then((source) => {
             hitTestSource = source;
@@ -218,13 +208,13 @@
           hitTestSourceRequested = true;
         }
 
-        // Update 2D reticle based on hit test result
+
         if (hitTestSource) {
           const hitTestResults = frame.getHitTestResults(hitTestSource);
           if (hitTestResults.length > 0) {
             const hit = hitTestResults[0];
             const hitPose = hit.getPose(xrRefSpace);
-            // Project to screen to position 2D reticle
+
             const p = new THREE.Vector3(hitPose.transform.position.x, hitPose.transform.position.y, hitPose.transform.position.z);
             p.project(camera);
             const x = (p.x * 0.5 + 0.5) * window.innerWidth;
@@ -242,7 +232,7 @@
     function onSessionEnd() {
       step2.classList.add('hidden');
       step1.classList.remove('hidden');
-      // Clean up renderer canvas
+   
       if (renderer) {
         renderer.setAnimationLoop(null);
         renderer.xr.getSession()?.removeEventListener('end', onSessionEnd);
@@ -251,14 +241,14 @@
         renderer.domElement.remove();
       }
       renderer = null; scene = null; camera = null; controller = null; hitTestSource = null; hitTestSourceRequested = false; mixer = null; placed = false;
-      // Reset UI reticle
+
       reticle2D.style.left = '-1000px';
       reticle2D.style.top = '-1000px';
     }
 
     async function onSelect() {
       if (placed) return;
-      // Load model mapped from QR value and place at the hit test pose in front of the controller/camera
+
       const session = renderer.xr.getSession();
       const refSpace = await session.requestReferenceSpace('local');
       const frame = renderer.xr.getFrame();
@@ -273,12 +263,11 @@
       loader.load(gltfUrl, (gltf) => {
         const model = gltf.scene;
         model.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
-        // Orient to surface normal (approximate): align up-axis with world up
-        model.rotation.set(-Math.PI/2, 0, 0); // Quick fix for some sample models; adjust per your assets
-        model.scale.set(0.02, 0.02, 0.02); // Adjust for asset size
+
+        model.rotation.set(-Math.PI/2, 0, 0);
+        model.scale.set(0.02, 0.02, 0.02);
         scene.add(model);
 
-        // Setup animation if present
         if (gltf.animations && gltf.animations.length) {
           mixer = new THREE.AnimationMixer(model);
           const action = mixer.clipAction(gltf.animations[0]);
@@ -291,13 +280,11 @@
       });
     }
 
-    // Start AR after a QR is detected
     startARBtn?.addEventListener('click', () => {
       if (!lastQRValue) { alert('Scan a QR first.'); return; }
       startARSession();
     });
 
-    // Exit AR
     document.getElementById('exitAR').addEventListener('click', () => {
       const s = renderer?.xr?.getSession?.();
       if (s) s.end(); else onSessionEnd();
@@ -306,6 +293,324 @@
     const constraints = { video: { facingMode: 'environment' } };
 scanStream = await navigator.mediaDevices.getUserMedia(constraints);
 
+  </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR → AR Animation (Three.js + WebXR)</title>
+  <style>
+    :root { font-family: system-ui, Inter, Arial; }
+    body { margin: 0; background: #0b0d10; color: #e5e7eb; }
+    .ui { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; }
+    .card { background: #111827cc; backdrop-filter: blur(6px); border: 1px solid #1f2937; border-radius: 16px; padding: 18px; width: min(640px, 92vw); box-shadow: 0 10px 30px rgba(0,0,0,.35); pointer-events: auto; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 8px 0; color: #cbd5e1; }
+    button { appearance: none; border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 600; cursor: pointer; background: #22c55e; color: #0b0d10; }
+    button.secondary { background: #e5e7eb; color: #111827; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    video { width: 100%; border-radius: 12px; border: 1px solid #1f2937; background: #000; }
+    .hint { font-size: 12px; color: #94a3b8; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: #22c55e; display: inline-block; margin-right: 6px; }
+    .hidden { display: none !important; }
+    .overlay { position: fixed; inset: 0; pointer-events: none; }
+    #reticle { position: absolute; left: -1000px; top: -1000px; width: 24px; height: 24px; border: 2px solid #22c55e; border-radius: 50%; transform: translate(-50%, -50%); }
+  </style>
+
+  <!-- Required Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
+</head>
+<body>
+  <div class="ui" id="domOverlay">
+    <div class="card" id="step1">
+      <h1>Step 1 — Scan a QR</h1>
+      <p>Give camera permission and point at any QR. Its text decides which animation to play.</p>
+      <div id="scanner">
+        <video id="qrVideo" muted playsinline></video>
+        <p class="hint">If the camera doesn’t open, make sure you’re on HTTPS and using a supported mobile browser (Chrome on Android).</p>
+        <div class="row" style="margin-top:10px;">
+          <button id="startScan">Start Scan</button>
+          <button id="stopScan" class="secondary" disabled>Stop Scan</button>
+        </div>
+      </div>
+      <div id="qrResult" class="hidden">
+        <p><span class="dot"></span><strong>QR Detected:</strong> <code id="qrText"></code></p>
+        <div class="row" style="margin-top:10px;">
+          <button id="startAR">Start AR</button>
+          <button id="rescan" class="secondary">Scan Again</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="step2">
+      <h1>Step 2 — Place the Model</h1>
+      <p>Move your phone to find a surface. Tap on the surface to place the 3D model. The animation will auto‑play.</p>
+      <p class="hint">Tip: well‑lit, textured surfaces (floor/table) are easier to detect.</p>
+      <div class="row" style="margin-top:10px;">
+        <button id="exitAR" class="secondary">Exit AR</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay"><div id="reticle"></div></div>
+
+  <!-- Your App Script -->
+  <script>
+    let lastQRValue = null;
+    let scanStream = null;
+
+    const startBtn = document.getElementById('startScan');
+    const stopBtn = document.getElementById('stopScan');
+    const startARBtn = document.getElementById('startAR');
+    const rescanBtn = document.getElementById('rescan');
+    const qrVideo = document.getElementById('qrVideo');
+    const qrTextEl = document.getElementById('qrText');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const qrResult = document.getElementById('qrResult');
+
+    const codeReader = new ZXing.BrowserMultiFormatReader();
+
+    async function startScanLoop() {
+      console.log('Start scan clicked');
+      try {
+        const devices = await codeReader.listVideoInputDevices();
+        const backCam = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[0];
+        const constraints = backCam
+          ? { video: { deviceId: backCam.deviceId } }
+          : { video: { facingMode: 'environment' } };
+
+        scanStream = await navigator.mediaDevices.getUserMedia(constraints);
+        qrVideo.srcObject = scanStream;
+        await qrVideo.play();
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        await codeReader.decodeFromVideoDevice(backCam?.deviceId, qrVideo, (res) => {
+          if (res) {
+            lastQRValue = res.getText();
+            onQRDetected(lastQRValue);
+            codeReader.reset();
+          }
+        });
+      } catch (err) {
+        alert('Camera/Scan error: ' + err.message);
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    function stopScanLoop() {
+      try { codeReader.reset(); } catch {}
+      if (scanStream) {
+        scanStream.getTracks().forEach(t => t.stop());
+        scanStream = null;
+      }
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    function onQRDetected(text) {
+      stopScanLoop();
+      qrTextEl.textContent = text;
+      document.getElementById('scanner').classList.add('hidden');
+      qrResult.classList.remove('hidden');
+    }
+
+    startBtn.addEventListener('click', startScanLoop);
+    stopBtn.addEventListener('click', stopScanLoop);
+
+    rescanBtn.addEventListener('click', () => {
+      lastQRValue = null;
+      qrResult.classList.add('hidden');
+      document.getElementById('scanner').classList.remove('hidden');
+      startScanLoop();
+    });
+
+    let renderer, scene, camera, controller, hitTestSource = null, hitTestSourceRequested = false;
+    let reticle2D = document.getElementById('reticle');
+    let placed = false;
+    let mixer = null; 
+
+    function initThree() {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local');
+      document.body.appendChild(renderer.domElement);
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 50);
+
+      const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+      scene.add(hemi);
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      controller = renderer.xr.getController(0);
+      controller.addEventListener('select', onSelect); 
+      scene.add(controller);
+    }
+
+    function mapQRToModel(qrValue) {
+      const map = {
+        'car123': 'https://github.com/harshbangar01/AR-model/blob/Root/614230004_amy_macarena_dance.glb?raw=true',
+        'dragon456': 'https://github.com/harshbangar01/AR-model/blob/Root/groot_dancing.glb?raw=true',
+      };
+      return map[qrValue] || 'https://github.com/harshbangar01/AR-model/blob/Root/windmill_game_ready.glb?raw=true';
+    }
+
+    async function startARSession() {
+      if (!navigator.xr) {
+        alert('WebXR not supported on this device/browser. Try Chrome on Android.');
+        return;
+      }
+
+      initThree();
+
+      const session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test', 'dom-overlay'],
+        domOverlay: { root: document.getElementById('domOverlay') }
+      });
+
+      await renderer.xr.setSession(session);
+      placed = false;
+      step1.classList.add('hidden');
+      step2.classList.remove('hidden');
+
+      const gl = renderer.getContext();
+      const xrRefSpace = await session.requestReferenceSpace('local');
+      const viewerSpace = await session.requestReferenceSpace('viewer');
+
+      session.addEventListener('end', onSessionEnd);
+
+      renderer.setAnimationLoop((timestamp, frame) => {
+        if (!frame) return;
+        const pose = frame.getViewerPose(xrRefSpace);
+        if (!pose) return;
+
+        if (!hitTestSourceRequested) {
+          frame.session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+            hitTestSource = source;
+          });
+          hitTestSourceRequested = true;
+        }
+
+        if (hitTestSource) {
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+          if (hitTestResults.length > 0) {
+            const hit = hitTestResults[0];
+            const hitPose = hit.getPose(xrRefSpace);
+
+            const p = new THREE.Vector3(
+              hitPose.transform.position.x,
+              hitPose.transform.position.y,
+              hitPose.transform.position.z
+            );
+            p.project(camera);
+            const x = (p.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-p.y * 0.5 + 0.5) * window.innerHeight;
+            reticle2D.style.left = x + 'px';
+            reticle2D.style.top = y + 'px';
+          }
+        }
+
+        if (mixer) mixer.update(0.016);
+        renderer.render(scene, camera);
+      });
+    }
+
+    function onSessionEnd() {
+      step2.classList.add('hidden');
+      step1.classList.remove('hidden');
+
+      if (renderer) {
+        renderer.setAnimationLoop(null);
+        renderer.xr.getSession()?.removeEventListener('end', onSessionEnd);
+        renderer.xr.getSession()?.end?.();
+        renderer.dispose();
+        renderer.domElement.remove();
+      }
+
+      renderer = null;
+      scene = null;
+      camera = null;
+      controller = null;
+      hitTestSource = null;
+      hitTestSourceRequested = false;
+      mixer = null;
+      placed = false;
+
+      reticle2D.style.left = '-1000px';
+      reticle2D.style.top = '-1000px';
+    }
+
+    async function onSelect() {
+      if (placed) return;
+
+      const session = renderer.xr.getSession();
+      const refSpace = await session.requestReferenceSpace('local');
+      const frame = renderer.xr.getFrame();
+      if (!frame || !hitTestSource) return;
+
+      const results = frame.getHitTestResults(hitTestSource);
+      if (results.length === 0) return;
+
+      const hit = results[0];
+      const pose = hit.getPose(refSpace);
+
+      const gltfUrl = mapQRToModel(lastQRValue || '');
+      const loader = new THREE.GLTFLoader();
+      loader.load(gltfUrl, (gltf) => {
+        const model = gltf.scene;
+        model.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+        model.rotation.set(-Math.PI / 2, 0, 0);
+        model.scale.set(0.02, 0.02, 0.02);
+        scene.add(model);
+
+        if (gltf.animations && gltf.animations.length) {
+          mixer = new THREE.AnimationMixer(model);
+          const action = mixer.clipAction(gltf.animations[0]);
+          action.setLoop(THREE.LoopRepeat);
+          action.play();
+        }
+        placed = true;
+      }, undefined, (err) => {
+        alert('Failed to load model: ' + err.message);
+      });
+    }
+
+    startARBtn?.addEventListener('click', () => {
+      if (!lastQRValue) {
+        alert('Scan a QR first.');
+        return;
+      }
+      startARSession();
+    });
+
+    document.getElementById('exitAR').addEventListener('click', () => {
+      const s = renderer?.xr?.getSession?.();
+      if (s) s.end();
+      else onSessionEnd();
+    });
   </script>
 </body>
 </html>
