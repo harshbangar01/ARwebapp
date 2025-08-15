@@ -25,6 +25,7 @@
   <!-- Three.js & helpers -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.min.js" type="module"></script>
   <!-- QR Reader (ZXing) -->
   <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0"></script>
@@ -301,6 +302,10 @@
       const s = renderer?.xr?.getSession?.();
       if (s) s.end(); else onSessionEnd();
     });
+
+    const constraints = { video: { facingMode: 'environment' } };
+scanStream = await navigator.mediaDevices.getUserMedia(constraints);
+
   </script>
 </body>
 </html>
